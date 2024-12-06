@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Referral Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Referral Dashboard</h1>
+    
+    <!-- Email Input Form -->
+    <form method="POST" action="/">
+        <label for="email">Enter Email:</label>
+        <input type="email" id="email" name="email" required>
+        <button type="submit">Fetch Referrals</button>
+    </form>
+
+    {% if data %}
+        <h3>Referrer Email: {{ data['referrer_email'] }}</h3>
+        <h3>Total Referrals: {{ data['total_referrals'] }}</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Created At</th>
+                    <th>Phone Number</th>
+                    <th>Reward Given</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in data['referred_users'] %}
+                <tr>
+                    <td>{{ user['id'] }}</td>
+                    <td>{{ user['email'] }}</td>
+                    <td>{{ user['created_at'] }}</td>
+                    <td>{{ user['phone_number'] }}</td>
+                    <td>{{ user['reward_given'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</body>
+</html>

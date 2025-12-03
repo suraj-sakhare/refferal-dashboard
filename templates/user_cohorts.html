@@ -145,12 +145,18 @@
                 <th>User</th>
                 <th>Acquisition</th>
                 <th>First Txn</th>
+                <th class="num">Jan</th>
+                <th class="num">Feb</th>
+                <th class="num">Mar</th>
+                <th class="num">Apr</th>
+                <th class="num">May</th>
                 <th class="num">Jun</th>
                 <th class="num">Jul</th>
                 <th class="num">Aug</th>
                 <th class="num">Sep</th>
                 <th class="num">Oct</th>
                 <th class="num">Nov</th>
+                <th class="num">Dec</th>
                 <th class="num">Total Txns</th>
                 <th class="num">Volume (₹)</th>
                 <th>Active Months</th>
@@ -170,12 +176,18 @@
                   <td>{{ u.fullName or 'N/A' }}</td>
                   <td>{{ u.acquisitionMonth or '-' }}</td>
                   <td>{{ u.firstTxnMonth or '-' }}</td>
+                  <td class="num">{{ mc.get('Jan',0) }}</td>
+                  <td class="num">{{ mc.get('Feb',0) }}</td>
+                  <td class="num">{{ mc.get('Mar',0) }}</td>
+                  <td class="num">{{ mc.get('Apr',0) }}</td>
+                  <td class="num">{{ mc.get('May',0) }}</td>
                   <td class="num">{{ mc.get('Jun',0) }}</td>
                   <td class="num">{{ mc.get('Jul',0) }}</td>
                   <td class="num">{{ mc.get('Aug',0) }}</td>
                   <td class="num">{{ mc.get('Sep',0) }}</td>
                   <td class="num">{{ mc.get('Oct',0) }}</td>
                   <td class="num">{{ mc.get('Nov',0) }}</td>
+                  <td class="num">{{ mc.get('Dec',0) }}</td>
                   <td class="num">{{ u.totalTxns or 0 }}</td>
                   <td class="num">{{ '%.2f'|format(u.totalVolume or 0) }}</td>
                   <td>{{ (u.activeMonths or [])|join(', ') }}</td>

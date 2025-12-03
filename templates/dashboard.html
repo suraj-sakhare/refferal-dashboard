@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Referral Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom right, #e8f5e9, #b2dfdb);
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+            animation: fadeIn 0.7s ease-in;
+        }
+
+        h2 {
+            text-align: center;
+            color: #2e7d32;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #f7f7f7;
+            border-left: 5px solid #66bb6a;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border-radius: 10px;
+            animation: pulseFade 1.5s ease-in-out;
+        }
+
+        .label {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #111;
+        }
+
+        .count-highlight {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #1b5e20;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        a {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            color: #2e7d32;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pulseFade {
+            0% { background-color: #f7f7f7; }
+            50% { background-color: #eeeeee; }
+            100% { background-color: #f7f7f7; }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 18px;
+            }
+            table, th, td {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% elif data %}
+            <h2>Referral Dashboard</h2>
+
+            <div class="card">
+                <div class="label">Referrer Email</div>
+                <div class="value">{{ data.referrer_email }}</div>
+            </div>
+
+            <div class="card">
+                <div class="label">Referral Code</div>
+                <div class="value">{{ data.referral_code }}</div>
+            </div>
+
+            <div class="count-highlight">
+                🎉 Total Referrals: {{ data.referrals_count }}
+            </div>
+
+            {% if data.referrals_by_date %}
+                <table>
+                    <tr>
+                        <th>Date</th>
+                        <th>Referrals</th>
+                    </tr>
+                    {% for row in data.referrals_by_date %}
+                    <tr>
+                        <td>{{ row.date }}</td>
+                        <td>{{ row.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            {% endif %}
+        {% else %}
+            <p class="error">No data available.</p>
+        {% endif %}
+        <a href="/">← Back to Home</a>
+    </div>
+</body>
+</html>

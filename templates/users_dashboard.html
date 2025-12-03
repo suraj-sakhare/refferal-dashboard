@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pepmo Dashboard — Users</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background:#f9f9f9; font-family:system-ui, sans-serif; }
+    .dashboard-header { font-weight:700; font-size:20px; }
+    .nav-link { color:#000; font-weight:500; }
+    .nav-link.active { border-bottom:2px solid #000; }
+    .badge-dot { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
+    .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .dot.high { background:#1ba44c; }
+    .dot.medium { background:#f0a400; }
+    .dot.low { background:#d11a2a; }
+    .search-box { max-width:260px; }
+    .table > :not(caption) > * > * { vertical-align: middle; }
+    .offcanvas { width: 620px !important; }
+    .detail-card { border:1px solid #eee; border-radius:12px; padding:16px; background:#fff; }
+    .muted { color:#7b7b7b; font-size:12px; }
+  </style>
+</head>
+<body>
+<div class="container mt-3">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+    <div class="dashboard-header">Pepmo Dashboard</div>
+    <div>
+      <a href="{{ url_for('users') }}" class="nav-link d-inline mx-2 {{ 'active' if active_tab=='analytics' else '' }}">Analytics</a>
+      <a href="{{ url_for('voucher_transactions') }}" class="nav-link d-inline mx-2 {{ 'active' if active_tab=='transactions' else '' }}">Transactions</a>
+      <a href="{{ url_for('users') }}" class="nav-link d-inline mx-2 {{ 'active' if active_tab=='users' else '' }}">Users</a>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+    <h3 class="m-0">Users</h3>
+    <input id="userSearch" type="text" class="form-control search-box" placeholder="Search" />
+  </div>
+
+  <div class="bg-white shadow-sm p-3 rounded">
+    <table class="table table-hover" id="usersTable">
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone Number</th>
+          <th>Repeater</th>
+          <th>Total Txns</th>
+          <th>Total Spent</th>
+          <th>Last Txn</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="user-row" data-userid="{{ u.user_id }}" style="cursor:pointer">
+          <td>{{ u.user_id }}</td>
+          <td>{{ u.name }}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.phone }}</td>
+          <td>
+            {% set rep = (u.repeater or 'Low')|lower %}
+            {% if rep == 'high' %}
+              <span class="badge-dot"><span class="dot high"></span> High</span>
+            {% elif rep == 'medium' %}
+              <span class="badge-dot"><span class="dot medium"></span> Medium</span>
+            {% else %}
+              <span class="badge-dot"><span class="dot low"></span> Low</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ u.total_txns }}</strong></td>
+          <td><strong>₹{{ u._total_spent_fmt }}</strong></td>
+          <td>
+            <div class="text-success fw-bold">₹{{ u._last_amt_fmt }}</div>
+            <small class="text-muted">{{ u.last_txn_date }}</small>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- simple pager shell -->
+    <div class="d-flex justify-content-between align-items-center">
+      <button class="btn btn-outline-secondary btn-sm">&larr; Previous</button>
+      <nav><ul class="pagination m-0">
+        <li class="page-item active"><span class="page-link">1</span></li>
+        <li class="page-item"><a class="page-link" href="#">2</a></li>
+        <li class="page-item"><span class="page-link">…</span></li>
+        <li class="page-item"><a class="page-link" href="#">10</a></li>
+      </ul></nav>
+      <button class="btn btn-outline-secondary btn-sm">Next &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- Offcanvas: User Overview -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="userOverview" aria-labelledby="userOverviewLabel">
+  <div class="offcanvas-header">
+    <h5 id="userOverviewLabel">User Overview</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div id="userOverviewContent" class="text-center text-muted">Tap a user to view details…</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // search filter
+  document.getElementById('userSearch').addEventListener('keyup', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#usersTable tbody tr').forEach(tr => {
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  // INR money fmt helper
+  const inr = v => {
+    const n = Number(v);
+    if (Number.isNaN(n)) return v ?? '';
+    return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // row click => fetch user overview
+  document.querySelectorAll('.user-row').forEach(row => {
+    row.addEventListener('click', function() {
+      const userId = this.dataset.userid;
+      const container = document.getElementById('userOverviewContent');
+      container.innerHTML = `<p class="text-muted">Loading…</p>`;
+
+      fetch(`/api/dashboard/v2/users/${userId}/overview`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) {
+            container.innerHTML = `<p class="text-danger">${data.error}</p>`;
+            return;
+          }
+
+          const u = data.user || {};
+          const s = data.stats || {};
+          const tx = data.transactions || [];
+
+          container.innerHTML = `
+            <div class="detail-card mb-3">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h5 class="mb-1">${u.name ?? 'N/A'}</h5>
+                  <div class="muted">User ID: <span class="text-monospace">${u.id ?? ''}</span></div>
+                </div>
+                <div class="text-end">
+                  <div class="fw-bold text-success fs-5">₹${inr(s.total_spent ?? 0)}</div>
+                  <div class="muted">Total Spent</div>
+                </div>
+              </div>
+
+              <div class="row mt-3 text-center">
+                <div class="col">
+                  <div class="fs-5 fw-bold">${s.total_txns ?? 0}</div>
+                  <div class="muted">Total Transactions</div>
+                </div>
+                <div class="col">
+                  <div class="fs-5 fw-bold">${(s.repeater ?? 'Low')}</div>
+                  <div class="muted">Repeater</div>
+                </div>
+                <div class="col">
+                  <div class="fs-5 fw-bold">${u.pepz ?? 0}</div>
+                  <div class="muted">PepZ</div>
+                </div>
+              </div>
+
+              <div class="row mt-3">
+                <div class="col">
+                  <div class="fw-bold">${u.email ?? 'N/A'}</div>
+                  <div class="muted">Email</div>
+                </div>
+                <div class="col">
+                  <div class="fw-bold">${u.phone ?? 'N/A'}</div>
+                  <div class="muted">Phone Number</div>
+                </div>
+                <div class="col">
+                  <div class="fw-bold">₹${inr(u.total_saved_amount ?? 0)}</div>
+                  <div class="muted">Total Saved</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-card">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="m-0">Transactions</h6>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Amount</th>
+                      <th>Date</th>
+                      <th>Brand</th>
+                      <th>Method</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tx.map(t => `
+                      <tr class="tx-line" data-orderid="${t.order_id}" style="cursor:pointer">
+                        <td class="text-monospace">#${t.order_id}</td>
+                        <td>₹${inr(t.amount)}</td>
+                        <td>${t.date}</td>
+                        <td>${t.brand}</td>
+                        <td>${t.method}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+
+          // Optionally: clicking a transaction row could open the existing transaction drawer
+          // if you have a mapping to upi_transaction_ref; otherwise omit.
+        });
+
+      new bootstrap.Offcanvas(document.getElementById('userOverview')).show();
+    });
+  });
+</script>
+</body>
+</html>

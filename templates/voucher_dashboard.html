@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pepmo Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+  <style>
+    body {
+      background: #f5f7f5;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .dashboard-header {
+      font-weight: 700;
+      font-size: 22px;
+    }
+
+    .card-box {
+      border-radius: 14px;
+      padding: 18px 20px;
+      background: #ffffff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    .table-wrapper {
+      background: #ffffff;
+      padding: 14px 16px;
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    .table-sm th,
+    .table-sm td {
+      padding: 0.35rem 0.4rem;
+      font-size: 0.82rem;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .provider-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .provider-gyftr { background: #EAF7D9; color: #566E0C; }
+    .provider-pinelabs { background: #D4F0F0; color: #155B5B; }
+
+    .arrow-up {
+      color: #0A8A2A;
+      font-weight: 700;
+      font-size: 14px;
+      margin-left: 3px;
+    }
+    .arrow-down {
+      color: #C62828;
+      font-weight: 700;
+      font-size: 14px;
+      margin-left: 3px;
+    }
+
+    .order-id-cell {
+      max-width: 150px;
+    }
+    .order-id-text {
+      display: inline-block;
+      max-width: 140px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .detail-card {
+      border-radius: 14px;
+      border: 1px solid #e8e8e8;
+      padding: 14px 14px 12px;
+      background: #ffffff;
+      margin-bottom: 14px;
+    }
+
+    .detail-card h6 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      color: #777;
+      margin: 0;
+    }
+
+    .detail-value {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .offcanvas {
+      width: 430px !important;
+      background: #f8f9fb;
+    }
+
+    /* make header nav lighter */
+    .nav-link {
+      color: #444;
+      font-size: 0.9rem;
+    }
+    .nav-link.active {
+      font-weight: 600;
+      border-bottom: 2px solid #000;
+    }
+
+    /* FINAL OVERRIDE — Forces bigger row height */
+    #transactionsTable.table tbody tr td,
+    #transactionsTable.table thead tr th {
+      padding-top: 18px !important;
+      padding-bottom: 18px !important;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container mt-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center pb-3 border-bottom">
+    <div class="dashboard-header">Pepmo Dashboard</div>
+    <div>
+      <a href="#" class="nav-link d-inline mx-2">Analytics</a>
+      <a href="#" class="nav-link active d-inline mx-2">Transactions</a>
+      <a href="#" class="nav-link d-inline mx-2">Users</a>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="row g-3 mt-2">
+    <div class="col-md-4">
+      <div class="card-box text-center">
+        <div class="text-muted" style="font-size:0.85rem;">SVC Balance</div>
+        <h3 class="mb-0">₹{{ latest_svc_balance }}</h3>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-box text-center">
+        <div class="text-muted" style="font-size:0.85rem;">Amt. to be settled by Juspay</div>
+        <h3 class="mb-0">₹{{ total_amount }}</h3>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-box text-center">
+        <div class="text-muted" style="font-size:0.85rem;">Total Volume</div>
+        <h3 class="mb-0">₹{{ total_volume }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table wrapper -->
+  <div class="table-wrapper mt-4">
+
+    <!-- Filters row -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <form method="get" action="/voucher-transactions" class="d-flex align-items-center gap-3">
+        <input type="date" name="date" value="{{ query_date }}" class="form-control form-control-sm" style="max-width:170px;">
+
+        <div class="d-flex align-items-center">
+          <span class="fw-semibold me-2" style="font-size:0.85rem;">Provider:</span>
+
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="provider" value="all"
+              {% if provider == 'all' %}checked{% endif %}>
+            <label class="form-check-label" style="font-size:0.85rem;">All</label>
+          </div>
+
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="provider" value="gyftr"
+              {% if provider == 'gyftr' %}checked{% endif %}>
+            <label class="form-check-label" style="font-size:0.85rem;">Gyftr</label>
+          </div>
+
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="provider" value="pinelabs"
+              {% if provider == 'pinelabs' or not provider %}checked{% endif %}>
+            <label class="form-check-label" style="font-size:0.85rem;">Pinelabs</label>
+          </div>
+        </div>
+
+        <button class="btn btn-dark btn-sm px-4">Filter</button>
+      </form>
+
+      <div class="d-flex align-items-center gap-2">
+        <input id="searchInput" type="text"
+               class="form-control form-control-sm"
+               placeholder="Search"
+               style="max-width:220px;">
+    
+               <a href="/voucher-transactions/export" 
+               class="btn btn-outline-secondary btn-sm" style="height: fit-content; font-size: x-small; font-style: oblique;" > 
+               Download CSV 
+              </a>              
+      </div>
+    </div>
+
+    <!-- Table (compact) -->
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0" id="transactionsTable">
+        <thead>
+        <tr>
+          <th style="width:160px;">Order ID</th>
+          <th>Provider</th>
+          <th>Date &amp; Time</th>
+          <th>User</th>
+          <th>Brand</th>
+          <th>Denom</th>
+          <th>Req.</th>
+          <th>Paid</th>
+          <th>SVC</th>
+          <th>Opening</th>
+          <th>Closing</th>
+          <th>Deposit</th>
+          <th>Pay Status</th>
+          <th>Voucher</th>
+          <th>Refund</th>
+        </tr>
+        </thead>
+
+        <tbody>
+        {% if data.data|length == 0 %}
+          <tr><td colspan="15" class="text-center text-muted">No transactions found</td></tr>
+        {% else %}
+        {% for txn in data.data %}
+          <tr class="txn-row"
+              data-userid="{{ txn.user_id }}"
+              data-orderid="{{ txn.order_id }}"
+              data-provider="{{ txn.provider }}">
+
+            <!-- Order ID (ellipsis) -->
+            <td class="order-id-cell">
+              <span class="order-id-text">{{ txn.order_id }}</span>
+            </td>
+
+            <!-- Provider -->
+            <td>
+              {% if txn.provider == "gyftr" %}
+                <span class="provider-badge provider-gyftr">Gyftr</span>
+              {% else %}
+                <span class="provider-badge provider-pinelabs">Pinelabs</span>
+              {% endif %}
+            </td>
+
+            <!-- Date / time -->
+            <td>{{ txn.date }} {{ txn.time }}</td>
+
+            <!-- User -->
+            <td>{{ txn.user_name }}</td>
+
+            <!-- Brand -->
+            <td>{{ txn.brand }}</td>
+
+            <!-- Denomination -->
+            <td><strong>₹{{ txn.denomination }} x{{ txn.qty }}</strong></td>
+
+            <!-- Requested -->
+            <td>₹{{ txn.requested_amount }}</td>
+
+            <!-- Paid -->
+            <td class="text-success">₹{{ txn.paid_by_user }}</td>
+
+            <!-- SVC deduction -->
+            <td>
+              {% if txn.provider == "pinelabs" %}
+                {% if txn.svc_deduction is not none %}
+                  ₹{{ txn.svc_deduction }}
+                {% else %}
+                  --
+                {% endif %}
+              {% else %}
+                --
+              {% endif %}
+            </td>
+
+            <!-- Opening -->
+            <td>
+              {% if txn.opening_balance is not none %}
+                ₹{{ txn.opening_balance }}
+              {% else %}
+                --
+              {% endif %}
+            </td>
+
+            <!-- Closing + arrow -->
+            <td>
+              {% if txn.opening_balance is not none and txn.closing_balance is not none %}
+                  {% set diff = (txn.closing_balance|float) - (txn.opening_balance|float) %}
+                  ₹{{ txn.closing_balance }}
+                  {% if diff > 0 %}
+                    <span class="arrow-up">↑</span>
+                  {% elif diff < 0 %}
+                    <span class="arrow-down">↓</span>
+                  {% endif %}
+              {% else %}
+                  --
+              {% endif %}
+            </td>
+
+            <!-- Deposit -->
+            <td>
+              {% if txn.provider == "pinelabs" %}
+                  {% if txn.deposit > 0 %}
+                      ₹{{ txn.deposit }}
+                  {% else %}
+                      0
+                  {% endif %}
+              {% else %}
+                  --
+              {% endif %}
+            </td>            
+
+            <!-- Payment status -->
+            <td>
+              {% if txn.payment_status == "SUCCESS" %}
+                <span class="text-success fw-bold">● Success</span>
+              {% else %}
+                <span class="text-danger fw-bold">● Failed</span>
+              {% endif %}
+            </td>
+
+            <!-- Voucher status -->
+            <td>
+              {% if txn.voucher_status == "SUCCESS" %}
+                <span class="text-success fw-bold">● Delivered</span>
+              {% else %}
+                <span class="text-danger fw-bold">● Failed</span>
+              {% endif %}
+            </td>
+
+            <!-- Refund -->
+            <td>
+              {% if txn.refund_status == "N/A" %}
+                --
+              {% elif txn.refund_status == "SUCCESS" %}
+                <span class="text-success fw-bold">● Success</span>
+              {% else %}
+                <span class="text-warning fw-bold">● {{ txn.refund_status }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Offcanvas Drawer -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="txnDetail" aria-labelledby="txnDetailLabel">
+  <div class="offcanvas-header">
+    <h5 id="txnDetailLabel" class="fw-bold mb-0">Transaction Details</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div id="txnDetailContent">
+      <p class="text-muted">Select a transaction to view details.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* Search filter */
+document.getElementById("searchInput").addEventListener("keyup", function () {
+  const value = this.value.toLowerCase();
+  document.querySelectorAll("tbody tr").forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(value) ? "" : "none";
+  });
+});
+
+/* Drawer details */
+document.querySelectorAll(".txn-row").forEach(row => {
+  row.addEventListener("click", function () {
+    const userId = this.dataset.userid;
+    const orderId = this.dataset.orderid;
+    const provider = this.dataset.provider || "pinelabs";
+
+    document.getElementById("txnDetailContent").innerHTML =
+      "<p class='text-muted'>Loading...</p>";
+
+    let apiUrl = `single-voucher-transactions/${userId}/${orderId}`;
+    if (provider === "gyftr") apiUrl += "?provider=gyftr";
+
+    fetch(apiUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById("txnDetailContent").innerHTML =
+            `<p class="text-danger">${data.error}</p>`;
+          return;
+        }
+
+        const ts = data.timestamp || "";
+        const brand = data.brand || "";
+        const requested = data.requested_amount ?? "--";
+        const paid = data.paid_by_user ?? "--";
+        const qty = data.qty ?? "--";
+
+        const ob = data.opening_balance;
+        const cb = data.closing_balance;
+        const svcBal = data.svc_balance;
+        const svcDed = data.svc_deduction;
+        const depositVal = data.deposit;
+
+        const openingStr = (ob === null || ob === undefined) ? "--" : `₹${ob}`;
+        const closingStr = (cb === null || cb === undefined) ? "--" : `₹${cb}`;
+        const svcBalStr = (svcBal === null || svcBal === undefined) ? "--" : `₹${svcBal}`;
+        const svcDedStr = (svcDed === null || svcDed === undefined) ? "--" : `₹${svcDed}`;
+        const depositStr =
+          (depositVal === null || depositVal === undefined || depositVal === 0)
+            ? "--"
+            : `₹${depositVal}`;
+
+        const couponCode = data.coupon_code || "--";
+        const couponDiscount = data.coupon_discount ?? 0;
+        const pepzUsed = data.pepz_used ?? 0;
+        const pepzDiscount = data.pepz_discount ?? 0;
+        const brandDiscount = data.brand_discount ?? 0;
+        const gameDiscount = data.additional_game_discount ?? 0;
+        const totalDiscPercent = data.total_discount_percent ?? 0;
+
+        const payMethod = data.payment_method || "--";
+        const payStatus = data.payment_status || "--";
+        const upiRef = data.upi_transaction_ref || "--";
+        const refundStatus = data.refund_status || "--";
+        const refundRef = data.refund_reference || "--";
+
+        const vCode = data.voucher_details?.code_masked || "--";
+        const vPin = data.voucher_details?.pin_masked || "--";
+
+        const userName = (data.user && data.user.name) || data.user_name || "--";
+        const userEmail = (data.user && data.user.email) || "--";
+        const userPhone = (data.user && data.user.phone) || "--";
+
+        document.getElementById("txnDetailContent").innerHTML = `
+          <!-- Order -->
+          <div class="detail-card">
+            <h6>Order Details</h6><hr>
+            <small>${ts}</small>
+            <p class="detail-value mt-1">${data.order_id}</p>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">${brand}</p>
+          </div>
+
+          <!-- Amount Summary -->
+          <div class="detail-card">
+            <h6>Amount Summary</h6><hr>
+            <div class="row text-center">
+              <div class="col">
+                <p class="detail-label">Requested</p>
+                <p class="detail-value">₹${requested}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Paid</p>
+                <p class="detail-value text-success">₹${paid}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Qty</p>
+                <p class="detail-value">x${qty}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Balance -->
+          <div class="detail-card">
+            <h6>Balance</h6><hr>
+            <div class="row text-center mb-2">
+              <div class="col">
+                <p class="detail-label">Opening</p>
+                <p class="detail-value">${openingStr}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Closing</p>
+                <p class="detail-value">${closingStr}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">SVC Bal</p>
+                <p class="detail-value">${svcBalStr}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Deposit</p>
+                <p class="detail-value">${depositStr}</p>
+              </div>
+            </div>
+            <div class="text-center">
+              <p class="detail-label">SVC Deduction</p>
+              <p class="detail-value">${svcDedStr}</p>
+            </div>
+          </div>
+
+          <!-- Discounts &amp; PepZ -->
+          <div class="detail-card">
+            <h6>Discounts &amp; PepZ</h6><hr>
+            <div class="row text-center">
+              <div class="col">
+                <p class="detail-label">Coupon Code</p>
+                <p class="detail-value">${couponCode}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Coupon Disc</p>
+                <p class="detail-value">₹${couponDiscount}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">PepZ Used</p>
+                <p class="detail-value">${pepzUsed}</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">PepZ Disc</p>
+                <p class="detail-value">₹${pepzDiscount}</p>
+              </div>
+            </div>
+            <hr>
+            <div class="row text-center">
+              <div class="col">
+                <p class="detail-label">Brand Disc</p>
+                <p class="detail-value">${brandDiscount}%</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Game Disc</p>
+                <p class="detail-value">${gameDiscount}%</p>
+              </div>
+              <div class="col">
+                <p class="detail-label">Total Disc%</p>
+                <p class="detail-value">${totalDiscPercent}%</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment -->
+          <div class="detail-card">
+            <h6>Payment</h6><hr>
+            <p class="mb-1"><span class="detail-label">Method:</span> <span class="detail-value">${payMethod}</span></p>
+            <p class="mb-1"><span class="detail-label">Status:</span> <span class="detail-value">${payStatus}</span></p>
+            <p class="mb-1"><span class="detail-label">UTR:</span> <span class="detail-value">${upiRef}</span>
+              <button class="btn btn-sm btn-link p-0 ms-2" onclick="copyToClipboard('${upiRef}', this)" title="Copy Transaction ID">
+                <i class="bi bi-clipboard" style="font-size: 14px; color: #666;"></i>
+              </button>
+            </p>
+          </div>
+
+          <!-- Refund -->
+          <div class="detail-card">
+            <h6>Refund</h6><hr>
+            <p class="mb-1"><span class="detail-label">Status:</span> <span class="detail-value">${refundStatus}</span></p>
+            <p class="mb-0"><span class="detail-label">Reference:</span> <span class="detail-value">${refundRef}</span></p>
+          </div>
+
+          <!-- Voucher -->
+          <div class="detail-card">
+            <h6>Voucher</h6><hr>
+            <p class="mb-1"><span class="detail-label">Code:</span> <span class="detail-value">${vCode}</span></p>
+            <p class="mb-0"><span class="detail-label">PIN:</span> <span class="detail-value">${vPin}</span></p>
+          </div>
+
+          <!-- User -->
+          <div class="detail-card">
+            <h6>User</h6><hr>
+            <p class="detail-value mb-1">${userName}</p>
+            
+            <p class="detail-label mb-1 d-flex align-items-center justify-content-between">
+              <span>UID: ${userId}</span>
+              <button class="btn btn-sm btn-link p-0 ms-2" onclick="copyToClipboard('${userId}', this)" title="Copy UID">
+                <i class="bi bi-clipboard" style="font-size: 14px; color: #666;"></i>
+              </button>
+            </p>
+            
+            <p class="detail-label mb-1 d-flex align-items-center justify-content-between">
+              <span>Email: ${userEmail}</span>
+              <button class="btn btn-sm btn-link p-0 ms-2" onclick="copyToClipboard('${userEmail}', this)" title="Copy Email">
+                <i class="bi bi-clipboard" style="font-size: 14px; color: #666;"></i>
+              </button>
+            </p>
+            
+            <p class="detail-label mb-0 d-flex align-items-center justify-content-between">
+              <span>Phone: +91 ${userPhone}</span>
+              <button class="btn btn-sm btn-link p-0 ms-2" onclick="copyToClipboard('${userPhone}', this)" title="Copy Phone">
+                <i class="bi bi-clipboard" style="font-size: 14px; color: #666;"></i>
+              </button>
+            </p>
+          </div>
+        `;
+      });
+
+    new bootstrap.Offcanvas(document.getElementById('txnDetail')).show();
+  });
+});
+
+/* Copy to clipboard function */
+function copyToClipboard(text, button) {
+  navigator.clipboard.writeText(text).then(() => {
+    const icon = button.querySelector('i');
+    icon.classList.remove('bi-clipboard');
+    icon.classList.add('bi-check-circle-fill');
+    icon.style.color = '#28a745';
+    
+    setTimeout(() => {
+      icon.classList.remove('bi-check-circle-fill');
+      icon.classList.add('bi-clipboard');
+      icon.style.color = '#666';
+    }, 2000);
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+  });
+}
+</script>
+
+</body>
+</html>

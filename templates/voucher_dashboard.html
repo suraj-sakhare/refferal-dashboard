@@ -223,6 +223,7 @@
           <th>Pay Status</th>
           <th>Voucher</th>
           <th>Refund</th>
+          <th>Paid Via</th>
         </tr>
         </thead>
 
@@ -346,6 +347,16 @@
                 <span class="text-warning fw-bold">● {{ txn.refund_status }}</span>
               {% endif %}
             </td>
+
+            <!-- Payment method -->
+             <td>
+              {% if txn.payment_method == "CARD" %}
+                <span class="fw-bold">CARD</span>
+              {% else %}
+                <span class="fw-bold">UPI</span>
+              {% endif %}
+             </td>
+  
           </tr>
         {% endfor %}
         {% endif %}

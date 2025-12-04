@@ -186,6 +186,10 @@ def voucher_transactions():
         except Exception:
             deposit = 0
 
+        # Round deposit to 2 decimal places
+        deposit = round(deposit, 2)
+        print (f"Txn {txn['order_id']}: Opening={opening}, Closing={closing}, Deposit={deposit}")
+
         prev_closing = closing  # update running balance
 
         balance_map[txn["order_id"]] = {
@@ -917,5 +921,5 @@ def download_brand_details_json():
 if __name__ == "__main__":
     # Start the scheduled report thread
     #threading.Thread(target=schedule_midnight_report, daemon=True).start()
-    app.run(host="0.0.0.0", port=3001, debug=False)
+    app.run(host="0.0.0.0", port=3001, debug=True)
 

@@ -310,7 +310,7 @@
             <td>
               {% if txn.provider == "pinelabs" %}
                   {% if txn.deposit > 0 %}
-                      ₹{{ txn.deposit }}
+                      ₹{{ "%.2f"|format(txn.deposit) }}
                   {% else %}
                       0
                   {% endif %}

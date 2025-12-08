@@ -451,17 +451,19 @@ def send_email_with_attachment(to_email, subject, body, file_bytes, filename):
 # 🧠 Fetch Yesterday's Transactions
 # ---------------------------------------------------------
 def fetch_yesterday_transactions():
-    yesterday = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+    # At 18:32 UTC, this "today" is actually the IST day that just ended
+    target_date = date.today().strftime("%Y-%m-%d")
 
-    # pinelabs + gyftr
-    d1 = fetch_provider_data(yesterday, "pinelabs")
-    d2 = fetch_provider_data(yesterday, "gyftr")
+    d1 = fetch_provider_data(target_date, "pinelabs")
+    d2 = fetch_provider_data(target_date, "gyftr")
 
-    for t in d1.get("data", []): t["provider"] = "pinelabs"
-    for t in d2.get("data", []): t["provider"] = "gyftr"
+    for t in d1.get("data", []):
+        t["provider"] = "pinelabs"
+    for t in d2.get("data", []):
+        t["provider"] = "gyftr"
 
     all_txns = d1["data"] + d2["data"]
-    return all_txns, yesterday
+    return all_txns, target_date
 
 # ---------------------------------------------------------
 # 🧠 Enrich Transactions with Balance and Deposit Logic

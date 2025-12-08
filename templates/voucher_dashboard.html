@@ -285,7 +285,7 @@
             <!-- Opening -->
             <td>
               {% if txn.opening_balance is not none %}
-                ₹{{ txn.opening_balance }}
+                ₹{{ "%.2f"|format(txn.opening_balance) }}
               {% else %}
                 --
               {% endif %}
@@ -295,7 +295,8 @@
             <td>
               {% if txn.opening_balance is not none and txn.closing_balance is not none %}
                   {% set diff = (txn.closing_balance|float) - (txn.opening_balance|float) %}
-                  ₹{{ txn.closing_balance }}
+                  ₹{{ "%.2f"|format(txn.closing_balance) }}
+
                   {% if diff > 0 %}
                     <span class="arrow-up">↑</span>
                   {% elif diff < 0 %}
@@ -309,16 +310,18 @@
             <!-- Deposit -->
             <td>
               {% if txn.provider == "pinelabs" %}
-                  {% if txn.deposit > 0 %}
+                  {% if txn.deposit is not none and txn.deposit > 0 %}
                       ₹{{ "%.2f"|format(txn.deposit) }}
-                  {% else %}
+                  {% elif txn.deposit is not none %}
                       0
+                  {% else %}
+                      --
                   {% endif %}
               {% else %}
                   --
               {% endif %}
-            </td>            
-
+            </td>
+         
             <!-- Payment status -->
             <td>
               {% if txn.payment_status == "SUCCESS" %}

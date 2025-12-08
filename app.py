@@ -47,38 +47,63 @@ TRANSACTION_CACHE = []   # stored for drawer merging
 # 🧠 Get Previous Day Closing Balance
 # ---------------------------------------------------------
 def get_previous_day_closing_balance(current_date_str):
+    from datetime import datetime, timedelta
+
+    # 1️⃣ Parse input date in either format
     try:
         current_date = datetime.strptime(current_date_str, "%Y-%m-%d").date()
-    except:
+    except ValueError:
         current_date = datetime.strptime(current_date_str, "%d/%m/%Y").date()
 
     prev_date = current_date - timedelta(days=1)
     prev_date_str = prev_date.strftime("%Y-%m-%d")
 
     url = f"{API_URL}?date={prev_date_str}&provider=pinelabs"
+    print(f"[prev-day] Fetching previous-day data from: {url}")
 
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url)   # no timeout, as you chose
         if r.status_code != 200:
+            print("[prev-day] Non-200 status:", r.status_code)
             return None
 
         data = r.json().get("data", [])
         if not data:
+            print("[prev-day] No data for prev day")
             return None
 
         # newest → oldest
         data.sort(
-            key=lambda x: datetime.strptime(f"{x['date']} {x['time']}", "%Y-%m-%d %H:%M:%S"),
-            reverse=True
+            key=lambda x: datetime.strptime(
+                f"{x['date']} {x['time']}", "%Y-%m-%d %H:%M:%S"
+            ),
+            reverse=True,
         )
 
+        # 2️⃣ Pick latest SUCCESS txn with valid svc_balance
         for txn in data:
-            if txn.get("voucher_status") == "SUCCESS":
-                return float(txn.get("svc_balance"))
+            status = txn.get("voucher_status")
+            if status != "SUCCESS":
+                # skip failed / pending vouchers
+                continue
 
+            raw = txn.get("svc_balance")
+            try:
+                bal = float(raw)
+                print(
+                    f"[prev-day] Using closing from SUCCESS order "
+                    f"{txn.get('order_id')}: {bal}"
+                )
+                return bal
+            except (TypeError, ValueError):
+                # svc_balance missing / invalid → try older txn
+                continue
+
+        print("[prev-day] No SUCCESS txn had a valid svc_balance")
         return None
 
-    except:
+    except Exception as e:
+        print("[prev-day] Error:", e)
         return None
 
 # ---------------------------------------------------------
@@ -151,7 +176,7 @@ def voucher_transactions():
     # process in chronological order
     pinelabs_sorted = sorted(pinelabs_txns, key=lambda x: x["_dt"])
 
-    prev_closing = get_previous_day_closing_balance(query_date)  # can be None
+    prev_closing = get_previous_day_closing_balance(query_date)  # float or None
     balance_map = {}
 
     for txn in pinelabs_sorted:
@@ -162,35 +187,49 @@ def voucher_transactions():
         except (TypeError, ValueError):
             svc_balance = None
 
-        # ----- Opening / Closing -----
-        opening = prev_closing  # first one might be None, that's fine
-
-        if svc_balance is None:
-            # if API failed to send svc_balance, assume no change
-            closing = opening
+        # ---------------- Opening / Closing ----------------
+        if prev_closing is None:
+            # first txn of the day with no prev closing
+            if svc_balance is not None:
+                opening = svc_balance
+                closing = svc_balance
+            else:
+                opening = None
+                closing = None
         else:
-            closing = svc_balance
+            # we know previous closing
+            opening = prev_closing
+            if svc_balance is None:
+                closing = opening
+            else:
+                closing = svc_balance
 
-        # ----- Deposit calculation (KEY FIX) -----
-        deposit = 0
+        # ---------------- Deposit ----------------
+        deposit = None
         try:
             if opening is not None and closing is not None:
                 svc_ded = float(txn.get("svc_deduction") or 0)
 
                 expected_closing = opening - svc_ded
-                diff = closing - expected_closing
+                raw_diff = closing - expected_closing
+                diff = round(raw_diff, 2)
 
-                # small epsilon to avoid float noise
-                if diff > 0.0001:
+                if diff > 0:
                     deposit = diff
-        except Exception:
-            deposit = 0
+                else:
+                    deposit = 0.0
+        except Exception as e:
+            print("Deposit calc error for", txn.get("order_id"), e)
+            deposit = None
 
-        # Round deposit to 2 decimal places
-        deposit = round(deposit, 2)
-        print (f"Txn {txn['order_id']}: Opening={opening}, Closing={closing}, Deposit={deposit}")
+        print(
+            f"Txn {txn['order_id']}: "
+            f"Opening={opening}, Closing={closing}, Deposit={deposit}"
+        )
 
-        prev_closing = closing  # update running balance
+        # move forward only if we have a closing value
+        if closing is not None:
+            prev_closing = closing
 
         balance_map[txn["order_id"]] = {
             "opening": opening,
@@ -206,7 +245,7 @@ def voucher_transactions():
             bal = balance_map.get(txn["order_id"], {})
             txn["opening_balance"] = bal.get("opening")
             txn["closing_balance"] = bal.get("closing")
-            txn["deposit"] = bal.get("deposit", 0)
+            txn["deposit"] = bal.get("deposit")
         else:
             txn["opening_balance"] = None
             txn["closing_balance"] = None

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>User Cohort Tracker</title>
+  <title>Detail User Data</title>
 
   <!-- Bootstrap & Simple DataTables -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -103,6 +103,11 @@
     .pill-no { background: #fee2e2; color: #991b1b; }
     .pill-seg { background: var(--accent-light); color: var(--accent); }
 
+    .btn-months {
+      padding: 0.25rem 0.7rem;
+      font-size: 0.8rem;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       h3 { font-size: 1.25rem; }
@@ -117,7 +122,7 @@
   <div class="container-fluid">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
-      <h3>User Cohort Tracker</h3>
+      <h3>Detail User Data</h3>
       <a href="/" class="btn btn-outline-secondary btn-sm mt-2 mt-md-0">← Back</a>
     </div>
 
@@ -126,14 +131,40 @@
     {% endif %}
 
     {% if data %}
-      <!-- Month sorting label -->
-      <div class="chips-label">Sort by Acquisition Month</div>
-      <div class="d-flex gap-2 flex-wrap mb-3" id="monthChips">
-        {% set months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
-        <a href="#" class="chip active" data-month="All">All</a>
-        {% for m in months %}
-          <a href="#" class="chip" data-month="{{ m }}">{{ m }}</a>
-        {% endfor %}
+
+      {# Collect years for dropdown #}
+      {% set years = [] %}
+      {% for u in data %}
+        {% if u.firstTxnYear and (u.firstTxnYear not in years) %}
+          {% set _ = years.append(u.firstTxnYear) %}
+        {% elif u.signupYear and (u.signupYear not in years) %}
+          {% set _ = years.append(u.signupYear) %}
+        {% endif %}
+      {% endfor %}
+      {% set years = years | sort %}
+
+      <!-- Top filters -->
+      <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+        <div>
+          <div class="chips-label mb-1">Sort by Acquisition Month</div>
+          <div class="d-flex gap-2 flex-wrap mb-2" id="monthChips">
+            {% set months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] %}
+            <a href="#" class="chip active" data-month="All">All</a>
+            {% for m in months %}
+              <a href="#" class="chip" data-month="{{ m }}">{{ m }}</a>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <label class="chips-label mb-1 d-block">Year</label>
+          <select id="yearFilter" class="form-select form-select-sm" style="min-width: 120px;">
+            <option value="All" selected>All</option>
+            {% for y in years %}
+              <option value="{{ y }}">{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
       <div class="card p-3">
@@ -145,64 +176,72 @@
                 <th>User</th>
                 <th>Acquisition</th>
                 <th>First Txn</th>
-                <th class="num">Jan</th>
-                <th class="num">Feb</th>
-                <th class="num">Mar</th>
-                <th class="num">Apr</th>
-                <th class="num">May</th>
-                <th class="num">Jun</th>
-                <th class="num">Jul</th>
-                <th class="num">Aug</th>
-                <th class="num">Sep</th>
-                <th class="num">Oct</th>
-                <th class="num">Nov</th>
-                <th class="num">Dec</th>
                 <th class="num">Total Txns</th>
                 <th class="num">Volume (₹)</th>
                 <th>Active Months</th>
-                <th>Repeat</th>
+                <th class="num">Repeat</th>
                 <th>Retained</th>
-                <th>Avg Txn (₹)</th>
+                <th class="num">Avg Txn (₹)</th>
                 <th>Segment</th>
                 <th>Cohort</th>
-                <th hidden>_acqOnly</th>
+                <th>Months</th>
+                <th hidden>_acqYearTokens</th>
               </tr>
             </thead>
             <tbody id="cohortTbody">
               {% for u in data %}
                 {% set mc = u.monthlyTxnCounts or {} %}
-                <tr data-acq="{{ u.acquisitionMonth or '-' }}">
+                {% set total = u.totalTxns or 0 %}
+                {# frontend logic override for retained + segment #}
+                {% set retained = "Yes" if total >= 2 else "No" %}
+                {% if total >= 3 %}
+                  {% set segment = "Loyal" %}
+                {% elif total == 2 %}
+                  {% set segment = "Returning" %}
+                {% elif total == 1 %}
+                  {% set segment = "New" %}
+                {% else %}
+                  {% set segment = "-" %}
+                {% endif %}
+
+                <tr
+                  data-acq="{{ u.acquisitionMonth or '-' }}"
+                  data-year="{{ u.firstTxnYear or u.signupYear or '-' }}"
+                  data-months='{{ mc | tojson }}'
+                  data-username='{{ (u.fullName or "User") | e }}'
+                >
                   <td>{{ loop.index }}</td>
                   <td>{{ u.fullName or 'N/A' }}</td>
                   <td>{{ u.acquisitionMonth or '-' }}</td>
-                  <td>{{ u.firstTxnMonth or '-' }}</td>
-                  <td class="num">{{ mc.get('Jan',0) }}</td>
-                  <td class="num">{{ mc.get('Feb',0) }}</td>
-                  <td class="num">{{ mc.get('Mar',0) }}</td>
-                  <td class="num">{{ mc.get('Apr',0) }}</td>
-                  <td class="num">{{ mc.get('May',0) }}</td>
-                  <td class="num">{{ mc.get('Jun',0) }}</td>
-                  <td class="num">{{ mc.get('Jul',0) }}</td>
-                  <td class="num">{{ mc.get('Aug',0) }}</td>
-                  <td class="num">{{ mc.get('Sep',0) }}</td>
-                  <td class="num">{{ mc.get('Oct',0) }}</td>
-                  <td class="num">{{ mc.get('Nov',0) }}</td>
-                  <td class="num">{{ mc.get('Dec',0) }}</td>
-                  <td class="num">{{ u.totalTxns or 0 }}</td>
+                  <td>
+                    {{ u.firstTxnMonth or '-' }}
+                    {% if u.firstTxnYear %} {{ u.firstTxnYear }}{% endif %}
+                  </td>
+                  <td class="num">{{ total }}</td>
                   <td class="num">{{ '%.2f'|format(u.totalVolume or 0) }}</td>
                   <td>{{ (u.activeMonths or [])|join(', ') }}</td>
                   <td class="num">{{ u.repeatCount or 0 }}</td>
                   <td>
-                    {% if (u.lifetimeRetained or '').lower() in ['yes','y','true','1'] %}
+                    {% if retained == "Yes" %}
                       <span class="pill pill-yes">Yes</span>
                     {% else %}
                       <span class="pill pill-no">No</span>
                     {% endif %}
                   </td>
                   <td class="num">{{ u.avgTxnValue or 0 }}</td>
-                  <td><span class="pill pill-seg">{{ u.userSegment or '-' }}</span></td>
+                  <td><span class="pill pill-seg">{{ segment }}</span></td>
                   <td>{{ u.cohortLabel or '-' }}</td>
-                  <td hidden>acq:{{ u.acquisitionMonth }}</td>
+                  <td>
+                    <button type="button"
+                            class="btn btn-outline-primary btn-months"
+                            onclick="openMonthsModal(this)">
+                      View
+                    </button>
+                  </td>
+                  <td hidden>
+                    acq:{{ u.acquisitionMonth or '-' }}
+                    year:{{ u.firstTxnYear or u.signupYear or '-' }}
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -214,11 +253,31 @@
     {% endif %}
   </div>
 
+  <!-- Month-wise modal -->
+  <div class="modal fade" id="monthsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title" id="monthsTitle">Month-wise Transactions</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <ul id="monthsList" class="list-group small"></ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/simple-datatables@9.0.0/dist/umd/simple-datatables.min.js"></script>
 
   <script>
+    const MONTH_ORDER = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
     document.addEventListener("DOMContentLoaded", function () {
       const tableEl = document.getElementById("cohortTable");
       if (!tableEl) return;
@@ -258,19 +317,62 @@
         .forEach(ev => dt.on(ev, () => setTimeout(renumber, 80)));
       setTimeout(renumber, 200);
 
+      // Month + Year combined filter using hidden token column
+      let currentMonth = "All";
+      let currentYear = "All";
+
+      function applyFilters() {
+        const parts = [];
+        if (currentMonth !== "All") parts.push("acq:" + currentMonth);
+        if (currentYear !== "All") parts.push("year:" + currentYear);
+        const query = parts.join(" ");
+        dt.search(query);
+        setTimeout(renumber, 150);
+      }
+
       const chips = document.querySelectorAll("#monthChips .chip");
       chips.forEach(chip => {
         chip.addEventListener("click", e => {
           e.preventDefault();
           chips.forEach(c => c.classList.remove("active"));
           chip.classList.add("active");
-          const m = chip.dataset.month;
-          if (m === "All") dt.search("");
-          else dt.search("acq:" + m);
-          setTimeout(renumber, 150);
+          currentMonth = chip.dataset.month;
+          applyFilters();
         });
       });
+
+      const yearFilter = document.getElementById("yearFilter");
+      if (yearFilter) {
+        yearFilter.addEventListener("change", () => {
+          currentYear = yearFilter.value;
+          applyFilters();
+        });
+      }
     });
+
+    // Month-wise modal
+    function openMonthsModal(button) {
+      const tr = button.closest("tr");
+      if (!tr) return;
+      const raw = tr.getAttribute("data-months") || "{}";
+      const name = tr.getAttribute("data-username") || "User";
+      let counts = {};
+      try { counts = JSON.parse(raw); } catch (e) { counts = {}; }
+
+      const list = document.getElementById("monthsList");
+      list.innerHTML = "";
+
+      MONTH_ORDER.forEach(m => {
+        const li = document.createElement("li");
+        li.className = "list-group-item d-flex justify-content-between";
+        li.innerHTML = `<span>${m}</span><strong>${counts[m] || 0}</strong>`;
+        list.appendChild(li);
+      });
+
+      document.getElementById("monthsTitle").textContent = `Transactions – ${name}`;
+      const modal = new bootstrap.Modal(document.getElementById("monthsModal"));
+      modal.show();
+    }
   </script>
 </body>
 </html>

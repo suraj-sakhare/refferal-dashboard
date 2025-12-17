@@ -12,7 +12,8 @@ def daily_job():
     print("Sending daily Excel report…")
     send_daily_excel_report(recipients)
 
-schedule.every().day.at("18:32").do(daily_job)
+# 7:30 AM IST = 02:00 UTC
+schedule.every().day.at("02:00").do(daily_job)
 
 print("Pepmo Scheduler started…")
 

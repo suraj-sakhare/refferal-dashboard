@@ -116,7 +116,7 @@ def fetch_provider_data(query_date, provider_param=None):
         url = f"{API_URL}?date={query_date}"
 
     try:
-        r = requests.get(url, timeout=20)
+        r = requests.get(url)
         if r.status_code == 200:
             return r.json()
         return {"data": [], "total_amount": 0, "total_volume": 0}
@@ -487,14 +487,16 @@ def send_email_with_attachment(to_email, subject, body, file_bytes, filename):
     server.quit()
 
 # ---------------------------------------------------------
-# 🧠 Fetch Yesterday's Transactions
+# 🧠 Fetch Yesterday's Transactions (for 7:30 AM IST schedule)
 # ---------------------------------------------------------
 def fetch_yesterday_transactions():
-    # At 18:32 UTC, this "today" is actually the IST day that just ended
-    target_date = date.today().strftime("%Y-%m-%d")
+    # Server is in UTC, job runs at 02:00 UTC (7:30 AM IST).
+    # At that time date.today() is the *current* IST date,
+    # so yesterday = immediate previous IST calendar date.
+    yesterday = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    d1 = fetch_provider_data(target_date, "pinelabs")
-    d2 = fetch_provider_data(target_date, "gyftr")
+    d1 = fetch_provider_data(yesterday, "pinelabs")
+    d2 = fetch_provider_data(yesterday, "gyftr")
 
     for t in d1.get("data", []):
         t["provider"] = "pinelabs"
@@ -502,7 +504,7 @@ def fetch_yesterday_transactions():
         t["provider"] = "gyftr"
 
     all_txns = d1["data"] + d2["data"]
-    return all_txns, target_date
+    return all_txns, yesterday
 
 # ---------------------------------------------------------
 # 🧠 Enrich Transactions with Balance and Deposit Logic
@@ -682,7 +684,7 @@ CUSTOMER_SEGREGATION_API = (
     "https://nexus.payppy.app/api/dashboard/v2/customer-segregation"
 )
 
-@app.route("/customer-segregation")
+@app.route("/user-volume-data")
 def customer_segregation():
     try:
         resp = requests.get(CUSTOMER_SEGREGATION_API, timeout=30)
@@ -700,7 +702,7 @@ def customer_segregation():
 # --------------------------------------
 # 🧠 User Cohort Analytics Dashboard
 # --------------------------------------
-@app.route("/user-cohorts")
+@app.route("/detail-user-data")
 def user_cohorts():
     try:
         # call your API that now returns the precomputed rows
